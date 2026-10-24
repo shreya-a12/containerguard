@@ -7,26 +7,30 @@ import sys
 from collections.abc import Sequence
 
 from containerguard import __version__
+from containerguard.analysis import analyze_trivy_report, load_trivy_report, print_summary
+from containerguard.errors import ContainerGuardError
+from containerguard.scanner import scan_image
 
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the argument parser and available subcommands."""
     parser = argparse.ArgumentParser(
         prog="containerguard",
-        description="Scan container images and enforce configurable vulnerability policies.",
+        description="Scan container images and summarize vulnerabilities reported by Trivy.",
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    scan_parser = subparsers.add_parser("scan", help="Scan an image and evaluate its policy.")
+    scan_parser = subparsers.add_parser("scan", help="Scan an image and summarize its vulnerabilities.")
     scan_parser.add_argument("image", help="Docker image reference, e.g. python:3.12-slim")
-    scan_parser.add_argument("--policy", help="Path to a YAML policy file.")
-    scan_parser.add_argument("--output-dir", default="reports", help="Directory for generated reports.")
+    scan_parser.add_argument(
+        "--output-dir",
+        default="reports",
+        help="Directory for the raw Trivy JSON report (default: reports).",
+    )
 
     analyze_parser = subparsers.add_parser("analyze", help="Analyze an existing Trivy JSON report.")
     analyze_parser.add_argument("report", help="Path to a saved Trivy JSON report.")
-    analyze_parser.add_argument("--policy", help="Path to a YAML policy file.")
-    analyze_parser.add_argument("--output-dir", default="reports", help="Directory for generated reports.")
 
     compare_parser = subparsers.add_parser("compare", help="Compare before-and-after scan reports.")
     compare_parser.add_argument("before", help="Path to the baseline report.")
@@ -39,13 +43,28 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    # Implementations are intentionally delivered in later, testable phases.
-    if args.command == "scan":
-        parser.exit(2, "ContainerGuard: scan integration is not implemented yet (planned Phase 2/4).\n")
-    if args.command == "analyze":
-        parser.exit(2, "ContainerGuard: report analysis is not implemented yet (planned Phase 2).\n")
-    if args.command == "compare":
-        parser.exit(2, "ContainerGuard: report comparison is not implemented yet (planned Phase 3).\n")
+    try:
+        if args.command == "scan":
+            report_path = scan_image(args.image, args.output_dir)
+            report = load_trivy_report(report_path)
+            summary = analyze_trivy_report(report)
+            print_summary(summary)
+            print(f"Raw Trivy report saved to: {report_path}")
+            return 0
+
+        if args.command == "analyze":
+            report = load_trivy_report(args.report)
+            print_summary(analyze_trivy_report(report))
+            return 0
+
+        if args.command == "compare":
+            raise ContainerGuardError(
+                "Report comparison is planned for Phase 3 and is not implemented yet."
+            )
+    except ContainerGuardError as exc:
+        print(f"ContainerGuard: {exc}", file=sys.stderr)
+        return 2
+
     return 0
 
 
