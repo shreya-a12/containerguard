@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Generated scan output (commit sanitized examples intentionally)
+reports/*
+!reports/.gitkeep
+!reports/examples/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
