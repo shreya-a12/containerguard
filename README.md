@@ -2,11 +2,11 @@
 
 **Docker Image Security Scanner** — a free, local-first DevSecOps tool for scanning container images with Trivy, interpreting findings in Python, enforcing configurable security policies, and producing actionable reports.
 
-> **Project status:** Phase 1 — foundation and CLI skeleton. Scan execution, vulnerability analysis, reporting, and CI enforcement are planned for subsequent phases and are not implemented yet.
+> **Project status:** Phase 2 — Trivy scanning integration and vulnerability analysis. Image scanning and analysis of saved Trivy JSON reports are implemented. Policy enforcement, polished JSON/Markdown/HTML reports, report comparison, and CI enforcement remain future phases.
 
 ## Goals
 
-- Scan local or registry-accessible Docker images with [Trivy](https://trivy.dev/).
+- Scan local or registry-accessible container images with [Trivy](https://trivy.dev/).
 - Normalize vulnerability identifiers, affected packages, severity, and fix availability.
 - Enforce configurable policies before images move through CI/CD.
 - Generate JSON, Markdown, and HTML reports.
@@ -16,17 +16,16 @@
 ## Technology
 
 - Python 3.11+
-- Docker
-- Trivy
+- Trivy CLI
 - pytest
-- GitHub Actions
+- GitHub Actions (planned)
 
 ## Project structure
 
 ```text
-src/containerguard/   Application package and CLI
+src/containerguard/   Application package, Trivy integration, and analysis
 tests/                Automated tests
-reports/              Local generated reports
+reports/              Local generated Trivy JSON reports (not committed)
 pyproject.toml        Package configuration and CLI entry point
 ```
 
@@ -50,18 +49,47 @@ python -m pip install --upgrade pip
 pip install -e ".[dev]"
 ```
 
-## Verify the foundation
+Install Trivy separately and ensure the `trivy` executable is available on your PATH. Follow the official [Trivy installation guide](https://trivy.dev/latest/getting-started/installation/). Verify the installation with:
 
-```bash
+```powershell
+trivy --version
+```
+
+ContainerGuard does not need to execute the image to scan it. Trivy may need network access to pull the image and update its vulnerability database.
+
+## Verify
+
+```powershell
 pytest -q
 containerguard --help
 containerguard --version
 containerguard scan --help
 containerguard analyze --help
-containerguard compare --help
 ```
 
-The commands currently define the intended CLI interface. Scan and analysis operations deliberately report that they are not implemented yet; later phases will add those capabilities.
+## Usage
+
+Scan an image and save Trivy's raw JSON report in the `reports` directory:
+
+```powershell
+containerguard scan python:3.12-slim
+```
+
+Choose a different report directory:
+
+```powershell
+containerguard scan python:3.12-slim --output-dir reports
+```
+
+Analyze an existing Trivy JSON report without rescanning the image:
+
+```powershell
+containerguard analyze reports/python_3.12-slim.trivy.json
+```
+
+The CLI prints total vulnerabilities and counts for CRITICAL, HIGH, MEDIUM, LOW, and UNKNOWN severity. Each normalized finding includes its vulnerability ID, package, installed/fixed versions, severity, title, target, and primary URL.
+
+The `compare` command is reserved for Phase 3 and currently reports that it is not implemented.
 
 ## Planned implementation
 
