@@ -30,3 +30,9 @@ reports/*
 .idea/
 .DS_Store
 Thumbs.db
+
+# Local database and runtime data
+data/
+*.db
+*.sqlite
+*.sqlite3
