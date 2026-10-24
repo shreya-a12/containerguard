@@ -2,109 +2,92 @@
 
 **Docker Image Security Scanner** — a free, local-first DevSecOps tool for scanning container images with Trivy, interpreting findings in Python, enforcing configurable security policies, and producing actionable reports.
 
-> **Project status:** Phase 2 — Trivy scanning integration and vulnerability analysis. Image scanning and analysis of saved Trivy JSON reports are implemented. Policy enforcement, polished JSON/Markdown/HTML reports, report comparison, and CI enforcement remain future phases.
-
-## Goals
-
-- Scan local or registry-accessible container images with [Trivy](https://trivy.dev/).
-- Normalize vulnerability identifiers, affected packages, severity, and fix availability.
-- Enforce configurable policies before images move through CI/CD.
-- Generate JSON, Markdown, and HTML reports.
-- Demonstrate remediation with before-and-after scans.
-- Run locally and in GitHub Actions without paid APIs or cloud hosting.
+> **Project status:** Phase 3 — Trivy scanning, vulnerability analysis, configurable severity policy evaluation, JSON/Markdown/HTML reports, and before/after report comparison are implemented in the feature branch. Frontend, API, persistent scan history, and CI security-gate integration are planned for later phases.
 
 ## Technology
 
 - Python 3.11+
 - Trivy CLI
+- PyYAML for safe YAML policy loading
 - pytest
-- GitHub Actions (planned)
-
-## Project structure
-
-```text
-src/containerguard/   Application package, Trivy integration, and analysis
-tests/                Automated tests
-reports/              Local generated Trivy JSON reports (not committed)
-pyproject.toml        Package configuration and CLI entry point
-```
+- GitHub Actions for automated tests
 
 ## Local setup
-
-Create and activate a virtual environment.
 
 **Windows PowerShell**
 ```powershell
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-pip install -e ".[dev]"
+python -m pip install -e ".[dev]"
 ```
 
-**macOS / Linux**
-```bash
-python3.11 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-pip install -e ".[dev]"
-```
-
-Install Trivy separately and ensure the `trivy` executable is available on your PATH. Follow the official [Trivy installation guide](https://trivy.dev/latest/getting-started/installation/). Verify the installation with:
-
-```powershell
-trivy --version
-```
-
-ContainerGuard does not need to execute the image to scan it. Trivy may need network access to pull the image and update its vulnerability database.
+Install Trivy separately and ensure `trivy` is on PATH. See the [official Trivy installation guide](https://trivy.dev/latest/getting-started/installation/).
 
 ## Verify
 
 ```powershell
 pytest -q
 containerguard --help
-containerguard --version
-containerguard scan --help
-containerguard analyze --help
 ```
 
 ## Usage
 
-Scan an image and save Trivy's raw JSON report in the `reports` directory:
+Scan an image, evaluate the default policy, and generate raw plus formatted reports:
 
 ```powershell
 containerguard scan python:3.12-slim
 ```
 
-Choose a different report directory:
+The default policy fails on CRITICAL or HIGH findings. Exit codes are:
+- `0`: policy passed
+- `1`: scan completed but policy failed
+- `2`: scan, input, policy, or report error
+
+Use the included YAML policy:
 
 ```powershell
-containerguard scan python:3.12-slim --output-dir reports
+containerguard scan python:3.12-slim --policy policies/default.yml
 ```
 
-Analyze an existing Trivy JSON report without rescanning the image:
+Example policy:
+
+```yaml
+fail_on_severity:
+  - CRITICAL
+  - HIGH
+fail_on_unfixed: false
+```
+
+Analyze an existing raw Trivy JSON report without rescanning:
 
 ```powershell
-containerguard analyze reports/python_3.12-slim.trivy.json
+containerguard analyze reports/python_3.12-slim.trivy.json --policy policies/default.yml
 ```
 
-The CLI prints total vulnerabilities and counts for CRITICAL, HIGH, MEDIUM, LOW, and UNKNOWN severity. Each normalized finding includes its vulnerability ID, package, installed/fixed versions, severity, title, target, and primary URL.
+Compare two raw Trivy JSON reports:
 
-The `compare` command is reserved for Phase 3 and currently reports that it is not implemented.
+```powershell
+containerguard compare reports/before.trivy.json reports/after.trivy.json
+```
 
-## Planned implementation
+Scan/analyze commands write a raw Trivy JSON report (scan only) and normalized JSON, Markdown, and HTML reports. Compare writes `reports/comparison.json`. Report output can be redirected with `--output-dir`.
 
-1. **Foundation:** packaging, CLI structure, error types, and initial tests.
-2. **Scanner and analysis:** Trivy integration, JSON parser, normalized findings, and severity summaries.
-3. **Policies and reports:** deterministic pass/fail rules, JSON/Markdown/HTML reports, and report comparison.
-4. **Docker and CI/CD:** sample image and GitHub Actions security gate.
-5. **Hardening and release:** integration tests, remediation walkthrough, security review, and final documentation.
+## Roadmap
+
+1. **Foundation:** packaging, CLI, typed errors, tests — complete.
+2. **Scanner and analysis:** Trivy integration, normalized findings, severity summaries — complete.
+3. **Policies and reports:** policy evaluation, JSON/Markdown/HTML reports, comparison — implemented in this branch.
+4. **API and storage:** FastAPI endpoints and SQLite scan history.
+5. **Frontend:** React + Tailwind security dashboard using real API data.
+6. **DevSecOps integration:** Dockerized app, CI security gate, integration tests, documentation.
 
 ## Security principles
 
 - Never execute the image being scanned as part of vulnerability analysis.
 - Pass subprocess arguments safely; do not build shell commands from untrusted input.
+- Load YAML with safe parsing and validate policy keys/values.
 - Treat scanner output as untrusted data.
-- Do not commit secrets, virtual environments, caches, or generated private reports.
+- Do not commit secrets, virtual environments, caches, or generated reports.
 - A clean Trivy report does not prove an image is free of every security defect.
 
 ## License

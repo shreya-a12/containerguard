@@ -1,0 +1,7 @@
+# Images fail policy evaluation if findings match these severities.
+fail_on_severity:
+  - CRITICAL
+  - HIGH
+
+# Also fail when a finding has no known fixed version.
+fail_on_unfixed: false
