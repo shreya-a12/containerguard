@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useState } from "react";
 import {
   ShieldCheck,
@@ -45,24 +44,39 @@ function getSeverityCounts(scan) {
 
   return {
     Critical: Number(
-      storedCounts.CRITICAL ?? storedCounts.Critical ??
-      summary.critical ?? scan?.critical_count ?? 0
+      storedCounts.CRITICAL ??
+        storedCounts.Critical ??
+        summary.critical ??
+        scan?.critical_count ??
+        0
     ),
     High: Number(
-      storedCounts.HIGH ?? storedCounts.High ??
-      summary.high ?? scan?.high_count ?? 0
+      storedCounts.HIGH ??
+        storedCounts.High ??
+        summary.high ??
+        scan?.high_count ??
+        0
     ),
     Medium: Number(
-      storedCounts.MEDIUM ?? storedCounts.Medium ??
-      summary.medium ?? scan?.medium_count ?? 0
+      storedCounts.MEDIUM ??
+        storedCounts.Medium ??
+        summary.medium ??
+        scan?.medium_count ??
+        0
     ),
     Low: Number(
-      storedCounts.LOW ?? storedCounts.Low ??
-      summary.low ?? scan?.low_count ?? 0
+      storedCounts.LOW ??
+        storedCounts.Low ??
+        summary.low ??
+        scan?.low_count ??
+        0
     ),
     Unknown: Number(
-      storedCounts.UNKNOWN ?? storedCounts.Unknown ??
-      summary.unknown ?? scan?.unknown_count ?? 0
+      storedCounts.UNKNOWN ??
+        storedCounts.Unknown ??
+        summary.unknown ??
+        scan?.unknown_count ??
+        0
     ),
   };
 }
@@ -96,11 +110,17 @@ function getPolicyPassed(scan) {
 }
 
 function getFindings(scan) {
+  const summary = getSummary(scan);
+
   const candidates = [
     scan?.findings,
     scan?.vulnerabilities,
     scan?.summary?.findings,
     scan?.summary?.vulnerabilities,
+    summary?.findings,
+    summary?.vulnerabilities,
+    scan?.result?.findings,
+    scan?.result?.summary?.findings,
   ];
 
   return candidates.find(Array.isArray) || [];
@@ -235,9 +255,10 @@ function App() {
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        const detail = typeof data.detail === "string"
-          ? data.detail
-          : `Scan failed (HTTP ${response.status}).`;
+        const detail =
+          typeof data.detail === "string"
+            ? data.detail
+            : `Scan failed (HTTP ${response.status}).`;
 
         throw new Error(detail);
       }
@@ -280,7 +301,6 @@ function App() {
   }, [loadScans]);
 
   const latest = scans[0] || null;
-  const latestSummary = getSummary(latest);
   const latestCounts = getSeverityCounts(latest);
   const selectedCounts = selected
     ? getSeverityCounts(selected)
@@ -288,7 +308,7 @@ function App() {
 
   const findings = getFindings(selected);
   const findingCounts = severityCountsFromFindings(findings);
-  const displayedCounts = selected ? findingCounts : latestCounts;
+  const displayedCounts = selected ? findingCounts : selectedCounts;
 
   const total = getTotal(latest);
   const high = latestCounts.High;
@@ -610,7 +630,9 @@ function App() {
                   return (
                     <tr
                       key={scan.id}
-                      className={selected?.id === scan.id ? "selected-row" : ""}
+                      className={
+                        selected?.id === scan.id ? "selected-row" : ""
+                      }
                     >
                       <td>
                         <div className="image-cell">
@@ -668,7 +690,9 @@ function App() {
                     <td colSpan="5" className="empty-state">
                       <FileSearch size={24} />
                       <strong>No scans yet</strong>
-                      <span>Run your first scan above to populate this table.</span>
+                      <span>
+                        Run your first scan above to populate this table.
+                      </span>
                     </td>
                   </tr>
                 )}
@@ -739,6 +763,7 @@ function App() {
                       <th>VULNERABILITY</th>
                       <th>PACKAGE</th>
                       <th>INSTALLED VERSION</th>
+                      <th>FIXED VERSION</th>
                     </tr>
                   </thead>
 
@@ -751,10 +776,19 @@ function App() {
                             item.name.toLowerCase() === severity.toLowerCase()
                         )?.color || "#94a3b8";
 
+                      const fixedVersion =
+                        finding.fixed_version ??
+                        finding.fixedVersion ??
+                        finding.FixedVersion ??
+                        "";
+
                       return (
                         <tr
                           key={`${
-                            finding.vulnerability_id || finding.id || "finding"
+                            finding.vulnerability_id ||
+                            finding.VulnerabilityID ||
+                            finding.id ||
+                            "finding"
                           }-${index}`}
                         >
                           <td>
@@ -769,19 +803,31 @@ function App() {
                               {severity}
                             </span>
                           </td>
+
                           <td className="mono">
-                            {finding.vulnerability_id || finding.id || "—"}
+                            {finding.vulnerability_id ||
+                              finding.VulnerabilityID ||
+                              finding.id ||
+                              "—"}
                           </td>
+
                           <td>
                             {finding.package_name ||
                               finding.pkg_name ||
                               finding.package ||
+                              finding.PkgName ||
                               "—"}
                           </td>
+
                           <td className="mono">
                             {finding.installed_version ||
+                              finding.InstalledVersion ||
                               finding.version ||
                               "—"}
+                          </td>
+
+                          <td className="mono">
+                            {fixedVersion || "No fix available"}
                           </td>
                         </tr>
                       );
@@ -789,7 +835,7 @@ function App() {
 
                     {!findings.length && (
                       <tr>
-                        <td colSpan="4" className="empty-state">
+                        <td colSpan="5" className="empty-state">
                           No detailed findings were returned for this scan.
                         </td>
                       </tr>
